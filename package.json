@@ -1,0 +1,29 @@
+{
+  "name": "antd-playwright-helper",
+  "version": "0.0.0",
+  "description": "some helper for playwright to interact with antd components",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "playwright test",
+    "prettier": "prettier --write '**/*.{js,ts,jsx,tsx}'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hirohe/antd-playwright-helper.git"
+  },
+  "author": "hirohe <hesreg@hotmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hirohe/antd-playwright-helper/issues"
+  },
+  "homepage": "https://github.com/hirohe/antd-playwright-helper#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.22.2",
+    "prettier": "^2.6.2"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.3"
+  }
+}
