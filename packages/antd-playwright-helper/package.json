@@ -21,6 +21,7 @@
   "homepage": "https://github.com/hirohe/antd-playwright-helper#readme",
   "devDependencies": {
     "@playwright/test": "^1.22.2",
+    "chai": "^4.3.6",
     "prettier": "^2.6.2"
   },
   "dependencies": {

@@ -1,6 +1,7 @@
 import { test } from '@playwright/test'
 import AntdFormHelper, { AntdInputType } from '../src/antd-form-helper'
 import dayjs from 'dayjs'
+import { expect } from 'chai'
 
 test('Basic test', async ({ page }) => {
   await page.goto(
@@ -144,4 +145,83 @@ test('Form in Modal', async ({ page }) => {
       value: 'lorem ipsum',
     },
   ])
+})
+
+test('Test Web', async ({ page }) => {
+  await page.goto('http://localhost:3000/#/form/basic')
+
+  const formHelper = new AntdFormHelper(page)
+  await formHelper.fillFormValues([
+    {
+      label: 'Input',
+      exactLabel: true,
+      type: AntdInputType.InputText,
+      value: 'hello',
+    },
+    {
+      label: 'Input Number',
+      type: AntdInputType.InputText,
+      value: '1.234',
+    },
+    {
+      label: 'Single Date',
+      type: AntdInputType.DatePicker,
+      value: '2022-01-02',
+    },
+    {
+      label: 'Date Range',
+      type: AntdInputType.DateRangePicker,
+      value: ['2022-01-02', '2022-04-03'],
+    },
+    {
+      label: 'Radio Group',
+      type: AntdInputType.RadioGroup,
+      value: 'Banana',
+    },
+    {
+      label: 'Radio Button Group',
+      type: AntdInputType.RadioGroup,
+      value: 'Pepsi',
+    },
+    {
+      label: 'Select',
+      exactLabel: true,
+      type: AntdInputType.Select,
+      value: 'Oat Milk',
+    },
+    {
+      label: 'Search Select',
+      type: AntdInputType.SearchSelect,
+      value: 'Arabica',
+    },
+    {
+      label: 'Switch',
+      type: AntdInputType.Switch,
+      value: true,
+    },
+    {
+      label: 'TreeSelect',
+      exactLabel: true,
+      type: AntdInputType.TreeSelect,
+      value: ['node-1', 'node-1-1', 'node-1-1-1'],
+    },
+  ])
+
+  await page.click('button:has-text("Submit")')
+
+  const resultJson = JSON.parse(
+    await page.locator('#form-value-json').textContent()
+  )
+  expect(resultJson).to.eql({
+    input: 'hello',
+    inputNumber: 1.234,
+    singleDate: '2022-01-02',
+    dateRange: ['2022-01-02', '2022-04-03'],
+    radioGroup: 'banana',
+    radioButtonGroup: 'pepsi',
+    select: 'oat milk',
+    searchSelect: 'arabica',
+    switch: true,
+    treeSelect: '1-1-1',
+  })
 })

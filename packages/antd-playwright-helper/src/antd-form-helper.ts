@@ -19,6 +19,7 @@ export enum AntdInputType {
   TreeSelect,
   MultipleTreeSelect,
   CheckableTreeSelect,
+  Switch,
   RadioGroup,
   CheckboxGroup,
 }
@@ -43,18 +44,24 @@ export type FillFormItem<Type extends AntdInputType> = {
     | AntdInputType.InputText
     | AntdInputType.Select
     | AntdInputType.SearchSelect
+    | AntdInputType.TextArea
+    | AntdInputType.RadioGroup
     ? string
     : Type extends AntdInputType.DatePicker | AntdInputType.TimePicker
     ? string | Date
     : Type extends AntdInputType.DateRangePicker | AntdInputType.TimeRangePicker
     ? [string | Date, string | Date]
-    : Type extends AntdInputType.CascadeSelect
+    : Type extends AntdInputType.CascadeSelect | AntdInputType.TreeSelect
     ? string[]
-    : Type extends AntdInputType.CheckableTreeSelect
+    : Type extends
+        | AntdInputType.CheckableTreeSelect
+        | AntdInputType.MultipleTreeSelect
     ? TreeSelectValue[]
     : Type extends AntdInputType.CheckboxGroup
     ? Record<string, boolean>
-    : any
+    : Type extends AntdInputType.Switch
+    ? boolean
+    : never
 }
 
 /**
@@ -170,8 +177,13 @@ class AntdFormHelper {
           fill as FillFormItem<AntdInputType.SearchSelect>
         )
         break
-      case AntdInputType.CheckableTreeSelect:
+      case AntdInputType.TreeSelect:
         await this.fillTreeSelectFormItem(
+          fill as FillFormItem<AntdInputType.TreeSelect>
+        )
+        break
+      case AntdInputType.CheckableTreeSelect:
+        await this.fillCheckableTreeSelectFormItem(
           fill as FillFormItem<AntdInputType.CheckableTreeSelect>
         )
         break
@@ -183,6 +195,11 @@ class AntdFormHelper {
       case AntdInputType.CheckboxGroup:
         await this.fillCheckboxGroupFormItem(
           fill as FillFormItem<AntdInputType.CheckboxGroup>
+        )
+        break
+      case AntdInputType.Switch:
+        await this.fillSwitchFormItem(
+          fill as FillFormItem<AntdInputType.Switch>
         )
         break
       default:
@@ -279,7 +296,52 @@ class AntdFormHelper {
       .click()
   }
 
-  async fillTreeSelectFormItem(
+  async fillTreeSelectFormItem(fill: FillFormItem<AntdInputType.TreeSelect>) {
+    const selector = this.locateFormItem(fill.label, fill.exactLabel).locator(
+      '.ant-tree-select'
+    )
+    await selector.click()
+    const selectionDropdown = this.page.locator('.ant-tree-select-dropdown')
+    const listHolder = selectionDropdown.locator(
+      '.ant-select-tree-list-holder-inner'
+    )
+
+    async function checkValue(page: Page, paths: string[], level: number) {
+      const isLeaf = paths.length === 1
+      const [currentNodeName, ...nextPaths] = paths
+
+      // ant-select-tree-indent-unit
+      const optionNode = listHolder
+        .locator(`> .ant-select-tree-treenode:has-text("${currentNodeName}")`)
+        .filter({
+          has:
+            level === 0
+              ? undefined
+              : page.locator(
+                  `.ant-select-tree-indent-unit >> nth=${level - 1}`
+                ),
+        })
+      await optionNode.waitFor()
+      if (isLeaf) {
+        await optionNode.click()
+        return
+      } else if (nextPaths) {
+        await optionNode.evaluate((node: HTMLDivElement) => {
+          const unOpenedSwitch = node.querySelector(
+            '.ant-select-tree-switcher:not(.ant-select-tree-switcher_open)'
+          ) as HTMLElement
+          if (unOpenedSwitch) {
+            unOpenedSwitch.click()
+          }
+        })
+        await checkValue(page, nextPaths, level + 1)
+      }
+    }
+
+    await checkValue(this.page, fill.value, 0)
+  }
+
+  async fillCheckableTreeSelectFormItem(
     fill: FillFormItem<AntdInputType.CheckableTreeSelect>
   ) {
     const selector = this.locateFormItem(fill.label, fill.exactLabel).locator(
@@ -387,6 +449,20 @@ class AntdFormHelper {
       })
     })
     await this.queue.run()
+  }
+
+  async fillSwitchFormItem(fill: FillFormItem<AntdInputType.Switch>) {
+    const switchButton = await this.locateFormItem(
+      fill.label,
+      fill.exactLabel
+    ).locator('button.ant-switch')
+    const currentChecked = await switchButton.evaluate((node: HTMLElement) => {
+      return node.classList.contains('ant-switch-checked')
+    })
+
+    if (currentChecked !== fill.value) {
+      await switchButton.click()
+    }
   }
 
   // TODO clearFormItem
