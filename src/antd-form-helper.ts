@@ -90,9 +90,7 @@ class AntdFormHelper {
     this.formLocator = formLocator
   }
 
-  setCustomFormItemLocator(
-    customFormItemLocator: CustomFormItemLocator
-  ) {
+  setCustomFormItemLocator(customFormItemLocator: CustomFormItemLocator) {
     this.customFormItemLocator = customFormItemLocator
   }
 
@@ -116,11 +114,9 @@ class AntdFormHelper {
     }
 
     if (exact) {
-      return this.formLocator
-        .locator('.ant-form-item')
-        .filter({
-          has: this.page.locator(`.ant-form-item-label >> text="${label}"`),
-        })
+      return this.formLocator.locator('.ant-form-item').filter({
+        has: this.page.locator(`.ant-form-item-label >> text="${label}"`),
+      })
     }
 
     return this.formLocator.locator(`.ant-form-item:has-text("${label}")`)
@@ -249,10 +245,20 @@ class AntdFormHelper {
   }
 
   async fillSelectFormItem(fill: FillFormItem<AntdInputType.Select>) {
-    const selector = this.locateFormItem(fill.label, fill.exactLabel).locator(
-      '.ant-select-selector'
+    const select = this.locateFormItem(fill.label, fill.exactLabel).locator(
+      '.ant-select'
     )
-    await selector.click()
+
+    const loading = await select.evaluate((node: HTMLDivElement) => {
+      return node.classList.contains('ant-select-loading')
+    })
+    if (loading) {
+      await this.locateFormItem(fill.label, fill.exactLabel)
+        .locator('.ant-select.ant-select-loading')
+        .waitFor({ state: 'detached' })
+    }
+    await select.click()
+
     const selectionDropdown = this.page.locator('.ant-select-dropdown')
     await selectionDropdown
       .locator(`.ant-select-item-option:has-text("${fill.value}")`)
