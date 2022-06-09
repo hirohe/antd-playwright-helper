@@ -2,12 +2,10 @@ import { test } from '@playwright/test'
 import AntdFormHelper, { AntdInputType } from '../src/antd-form-helper'
 import dayjs from 'dayjs'
 
-test('', async ({ page }) => {
+test('Basic test', async ({ page }) => {
   await page.goto(
     'https://rekit.github.io/antd-form-builder/examples-v4/#basic'
   )
-
-  await page.pause()
 
   const formHelper = new AntdFormHelper(page)
   await formHelper.fillFormValues([
@@ -61,6 +59,89 @@ test('', async ({ page }) => {
       value: dayjs().format('YYYY-MM-DD'),
     },
   ])
+})
 
-  await page.pause()
+test('Async Data Source', async ({ page }) => {
+  await page.goto(
+    'https://rekit.github.io/antd-form-builder/examples-v4/#async-data-source'
+  )
+
+  const formHelper = new AntdFormHelper(page)
+
+  await formHelper.fillFormValues([
+    {
+      label: 'Country',
+      type: AntdInputType.Select,
+      value: 'France',
+    },
+    {
+      label: 'City',
+      type: AntdInputType.Select,
+      value: 'Paris',
+    },
+  ])
+})
+
+test('Complex Layout', async ({ page }) => {
+  await page.goto(
+    'https://rekit.github.io/antd-form-builder/examples-v4/#complex-layout'
+  )
+
+  const formHelper = new AntdFormHelper(page)
+  await formHelper.fillFormValues([
+    {
+      label: 'Address',
+      exactLabel: true,
+      type: AntdInputType.InputText,
+      value: '123 Main St',
+    },
+    {
+      label: 'Address2',
+      exactLabel: true,
+      type: AntdInputType.InputText,
+      value: 'Apt. 2',
+    },
+    {
+      label: 'City',
+      type: AntdInputType.InputText,
+      value: 'New York',
+    },
+    {
+      label: 'Home Type',
+      type: AntdInputType.Select,
+      value: 'Apartment',
+    },
+    {
+      label: 'Room Type',
+      type: AntdInputType.Select,
+      value: 'Shared',
+    },
+    {
+      label: 'King',
+      type: AntdInputType.InputText,
+      value: '1',
+    },
+  ])
+})
+
+test('Form in Modal', async ({ page }) => {
+  await page.goto(
+    'https://rekit.github.io/antd-form-builder/examples-v4/#form-in-modal'
+  )
+
+  await page.click('button:has-text("New Item")')
+
+  const formHelper = new AntdFormHelper(page)
+  await formHelper.fillFormValues([
+    {
+      label: 'Name',
+      type: AntdInputType.InputText,
+      value: 'john smith',
+    },
+    {
+      label: 'Description',
+      type: AntdInputType.InputText,
+      value: 'lorem ipsum',
+    },
+  ])
 })
