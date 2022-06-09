@@ -36,6 +36,8 @@ export type TreeSelectValue = {
 }
 
 export type FillFormItem<Type extends AntdInputType> = {
+  label: string
+  exactLabel?: boolean
   type: Type
   value: Type extends
     | AntdInputType.InputText
@@ -56,6 +58,18 @@ export type FillFormItem<Type extends AntdInputType> = {
 }
 
 /**
+ * @param label form item label
+ * @param exact match the label text exactly
+ * @param formLocator where to use to locate form item
+ * @return playwright Locator
+ */
+export type CustomFormItemLocator = (
+  label: string,
+  exact: boolean,
+  formLocator: Locator
+) => Locator
+
+/**
  * Antd form helper
  */
 class AntdFormHelper {
@@ -69,20 +83,15 @@ class AntdFormHelper {
   /**
    * Customize the locator of the form item.
    * locateFormItem method will use this locator to locate the form item.
-   * @param label form item's label
-   * @param formLocator where to locate the form item
    */
-  private customFormItemLocator?: (
-    label: string,
-    formLocator: Locator
-  ) => Locator
+  private customFormItemLocator?: CustomFormItemLocator
 
   setFormLocator(formLocator: Locator) {
     this.formLocator = formLocator
   }
 
   setCustomFormItemLocator(
-    customFormItemLocator: (label: string, formLocator: Locator) => Locator
+    customFormItemLocator: CustomFormItemLocator
   ) {
     this.customFormItemLocator = customFormItemLocator
   }
@@ -90,7 +99,7 @@ class AntdFormHelper {
   constructor(
     public page: Page,
     formLocator?: Locator,
-    customFormItemLocator?: (label: string, formLocator: Locator) => Locator
+    customFormItemLocator?: CustomFormItemLocator
   ) {
     this.formLocator = formLocator || page.locator('form.ant-form')
     this.customFormItemLocator = customFormItemLocator
@@ -99,11 +108,21 @@ class AntdFormHelper {
   /**
    * locate the form item by label
    * @param label form item's label
+   * @param exact if true, will use exact match, otherwise, will use contains match
    */
-  locateFormItem(label: string) {
+  locateFormItem(label: string, exact = false) {
     if (this.customFormItemLocator) {
-      return this.customFormItemLocator(label, this.formLocator)
+      return this.customFormItemLocator(label, exact, this.formLocator)
     }
+
+    if (exact) {
+      return this.formLocator
+        .locator('.ant-form-item')
+        .filter({
+          has: this.page.locator(`.ant-form-item-label >> text="${label}"`),
+        })
+    }
+
     return this.formLocator.locator(`.ant-form-item:has-text("${label}")`)
   }
 
@@ -112,73 +131,61 @@ class AntdFormHelper {
    * will perform different actions depending on the input type
    * @param values FillFormItem list
    */
-  async fillFormValues(
-    values: ({ label: string } & FillFormItem<AntdInputType>)[]
-  ) {
+  async fillFormValues(values: FillFormItem<AntdInputType>[]) {
     values.forEach((item) => {
-      this.queue.push(() => this.fillFormItem(item.label, item))
+      this.queue.push(() => this.fillFormItem(item))
     })
     await this.queue.run()
   }
 
   /**
    * fill single form item
-   * @param label form item's label
    * @param fill FillFormItem
    */
-  async fillFormItem(label: string, fill: FillFormItem<AntdInputType>) {
+  async fillFormItem(fill: FillFormItem<AntdInputType>) {
     switch (fill.type) {
       case AntdInputType.InputText:
         await this.fillInputFormItem(
-          label,
           fill as FillFormItem<AntdInputType.InputText>
         )
         break
       case AntdInputType.TextArea:
         await this.fillTextAreaFormItem(
-          label,
           fill as FillFormItem<AntdInputType.InputText>
         )
         break
       case AntdInputType.DatePicker:
         await this.fillDateFormItem(
-          label,
           fill as FillFormItem<AntdInputType.DatePicker>
         )
         break
       case AntdInputType.DateRangePicker:
         await this.fillDateRangeFormItem(
-          label,
           fill as FillFormItem<AntdInputType.DateRangePicker>
         )
         break
       case AntdInputType.Select:
         await this.fillSelectFormItem(
-          label,
           fill as FillFormItem<AntdInputType.Select>
         )
         break
       case AntdInputType.SearchSelect:
         await this.fillSearchSelectFormItem(
-          label,
           fill as FillFormItem<AntdInputType.SearchSelect>
         )
         break
       case AntdInputType.CheckableTreeSelect:
         await this.fillTreeSelectFormItem(
-          label,
           fill as FillFormItem<AntdInputType.CheckableTreeSelect>
         )
         break
       case AntdInputType.RadioGroup:
         await this.fillRadioGroupFormItem(
-          label,
           fill as FillFormItem<AntdInputType.RadioGroup>
         )
         break
       case AntdInputType.CheckboxGroup:
         await this.fillCheckboxGroupFormItem(
-          label,
           fill as FillFormItem<AntdInputType.CheckboxGroup>
         )
         break
@@ -187,36 +194,33 @@ class AntdFormHelper {
     }
   }
 
-  async fillInputFormItem(
-    label: string,
-    fill: FillFormItem<AntdInputType.InputText>
-  ) {
-    await this.locateFormItem(label).locator('input').fill(fill.value)
+  async fillInputFormItem(fill: FillFormItem<AntdInputType.InputText>) {
+    await this.locateFormItem(fill.label, fill.exactLabel)
+      .locator('input')
+      .fill(fill.value)
   }
 
-  async fillTextAreaFormItem(
-    label: string,
-    fill: FillFormItem<AntdInputType.InputText>
-  ) {
-    await this.locateFormItem(label).locator('textarea').fill(fill.value)
+  async fillTextAreaFormItem(fill: FillFormItem<AntdInputType.InputText>) {
+    await this.locateFormItem(fill.label, fill.exactLabel)
+      .locator('textarea')
+      .fill(fill.value)
   }
 
-  async fillDateFormItem(
-    label: string,
-    fill: FillFormItem<AntdInputType.DatePicker>
-  ) {
+  async fillDateFormItem(fill: FillFormItem<AntdInputType.DatePicker>) {
     const value =
       fill.value instanceof Date
         ? dayjs(fill.value).format('YYYY-MM-DD')
         : fill.value
-    const input = await this.locateFormItem(label).locator('input')
+    const input = await this.locateFormItem(
+      fill.label,
+      fill.exactLabel
+    ).locator('input')
     await input.dblclick()
     await input.fill(value)
     await input.press('Enter')
   }
 
   async fillDateRangeFormItem(
-    label: string,
     fill: FillFormItem<AntdInputType.DateRangePicker>
   ) {
     const start =
@@ -228,22 +232,26 @@ class AntdFormHelper {
         ? dayjs(fill.value[1]).format('YYYY-MM-DD')
         : fill.value[1]
 
-    const firstInput = this.locateFormItem(label).locator('input >> nth=0')
+    const firstInput = this.locateFormItem(fill.label, fill.exactLabel).locator(
+      'input >> nth=0'
+    )
     await firstInput.dblclick()
     await firstInput.fill(start)
     await firstInput.press('Enter')
 
-    const secondInput = this.locateFormItem(label).locator('input >> nth=1')
+    const secondInput = this.locateFormItem(
+      fill.label,
+      fill.exactLabel
+    ).locator('input >> nth=1')
     await secondInput.dblclick()
     await secondInput.fill(end)
     await secondInput.press('Enter')
   }
 
-  async fillSelectFormItem(
-    label: string,
-    fill: FillFormItem<AntdInputType.Select>
-  ) {
-    const selector = this.locateFormItem(label).locator('.ant-select-selector')
+  async fillSelectFormItem(fill: FillFormItem<AntdInputType.Select>) {
+    const selector = this.locateFormItem(fill.label, fill.exactLabel).locator(
+      '.ant-select-selector'
+    )
     await selector.click()
     const selectionDropdown = this.page.locator('.ant-select-dropdown')
     await selectionDropdown
@@ -252,12 +260,12 @@ class AntdFormHelper {
   }
 
   async fillSearchSelectFormItem(
-    label: string,
     fill: FillFormItem<AntdInputType.SearchSelect>
   ) {
-    const searchInput = this.locateFormItem(label).locator(
-      '.ant-select-selection-search-input'
-    )
+    const searchInput = this.locateFormItem(
+      fill.label,
+      fill.exactLabel
+    ).locator('.ant-select-selection-search-input')
     await searchInput.fill(fill.value)
     const selectionDropdown = this.page.locator('.ant-select-dropdown')
     await selectionDropdown
@@ -266,10 +274,11 @@ class AntdFormHelper {
   }
 
   async fillTreeSelectFormItem(
-    label: string,
     fill: FillFormItem<AntdInputType.CheckableTreeSelect>
   ) {
-    const selector = this.locateFormItem(label).locator('.ant-tree-select')
+    const selector = this.locateFormItem(fill.label, fill.exactLabel).locator(
+      '.ant-tree-select'
+    )
     await selector.click()
     const selectionDropdown = this.page.locator('.ant-tree-select-dropdown')
     const listHolder = selectionDropdown.locator(
@@ -333,11 +342,10 @@ class AntdFormHelper {
     })
   }
 
-  async fillRadioGroupFormItem(
-    label: string,
-    fill: FillFormItem<AntdInputType.RadioGroup>
-  ) {
-    const radioGroup = this.locateFormItem(label).locator('.ant-radio-group')
+  async fillRadioGroupFormItem(fill: FillFormItem<AntdInputType.RadioGroup>) {
+    const radioGroup = this.locateFormItem(fill.label, fill.exactLabel).locator(
+      '.ant-radio-group'
+    )
     // check radio button style
     const radioWrapperClassname = await radioGroup.evaluate(
       (node: HTMLDivElement) => {
@@ -353,12 +361,12 @@ class AntdFormHelper {
   }
 
   async fillCheckboxGroupFormItem(
-    label: string,
     fill: FillFormItem<AntdInputType.CheckboxGroup>
   ) {
-    const checkboxGroup = this.locateFormItem(label).locator(
-      '.ant-checkbox-group'
-    )
+    const checkboxGroup = this.locateFormItem(
+      fill.label,
+      fill.exactLabel
+    ).locator('.ant-checkbox-group')
     Object.entries(fill.value).forEach(([label, checked]) => {
       this.queue.push(async () => {
         const wrapper = checkboxGroup.locator(
